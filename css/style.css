@@ -114,6 +114,7 @@ textarea { resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, C
 .preview-box { margin-top: 32px; padding: 24px; background: var(--accent-soft); border-radius: var(--radius); }
 .preview-box h2 { font-size: 1.2rem; margin-bottom: 12px; }
 .flash { background: var(--accent-soft); color: var(--accent); padding: 10px 16px; border-radius: 10px; margin: 20px 0; font-weight: 600; }
+.flash-err { background: #fee2e2; color: #b91c1c; }
 .empty { color: var(--muted); margin: 24px 0; }
 
 @media (max-width: 560px) {

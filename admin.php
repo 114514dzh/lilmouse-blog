@@ -89,8 +89,22 @@ if ($user) {
         if (!csrf_ok()) { $msg = '会话过期，请刷新后重试'; $action = 'list'; }
         else {
             $id = (int)($_POST['id'] ?? 0);
-            $st = db()->prepare("DELETE FROM posts WHERE id=? AND user_id=?");
+            // 先确认文章确实属于当前用户，再连同评论一起删除。
+            // 此前只删 posts，评论会残留成孤儿数据（post_id 指向已不存在的文章），
+            // 既不可见也无法清理。用事务保证两者一致。
+            $st = db()->prepare("SELECT id FROM posts WHERE id=? AND user_id=?");
             $st->execute([$id, $user['id']]);
+            if ($st->fetch()) {
+                $pdo = db();
+                $pdo->beginTransaction();
+                try {
+                    $pdo->prepare("DELETE FROM comments WHERE post_id=?")->execute([$id]);
+                    $pdo->prepare("DELETE FROM posts WHERE id=? AND user_id=?")->execute([$id, $user['id']]);
+                    $pdo->commit();
+                } catch (Throwable $e) {
+                    $pdo->rollBack();
+                }
+            }
             header('Location: admin.php?msg=deleted'); exit;
         }
     }

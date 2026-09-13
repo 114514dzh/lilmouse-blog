@@ -11,8 +11,12 @@ if (($_GET['action'] ?? '') === 'count') {
     if (!$user) { echo json_encode(['guest' => true]); exit; }
     $uid = (int)$user['id'];
     $st = db()->prepare("SELECT COUNT(*) c FROM comments c JOIN posts p ON p.id = c.post_id
-                         WHERE p.user_id = ? AND c.id > ? AND (c.user_id IS NULL OR c.user_id != ?)");
-    $st->execute([$uid, (int)($user['last_seen_comment_id'] ?? 0), $uid]);
+                         WHERE c.id > ?
+                           AND (c.user_id IS NULL OR c.user_id != ?)
+                           AND (p.user_id = ?
+                                OR EXISTS (SELECT 1 FROM comments mc
+                                           WHERE mc.post_id = c.post_id AND mc.user_id = ?))");
+    $st->execute([(int)($user['last_seen_comment_id'] ?? 0), $uid, $uid, $uid]);
     echo json_encode(['count' => (int)$st->fetch()['c']]);
     exit;
 }
@@ -27,16 +31,22 @@ $st = db()->prepare("SELECT c.id, c.post_id, c.content, c.created_at,
     FROM comments c
     JOIN posts p ON p.id = c.post_id
     LEFT JOIN users u ON u.id = c.user_id
-    WHERE p.user_id = ? AND (c.user_id IS NULL OR c.user_id != ?)
+    WHERE (c.user_id IS NULL OR c.user_id != ?)
+      AND (p.user_id = ?
+           OR EXISTS (SELECT 1 FROM comments mc
+                      WHERE mc.post_id = c.post_id AND mc.user_id = ?))
     ORDER BY c.id DESC
     LIMIT 50");
-$st->execute([$uid, $uid]);
+$st->execute([$uid, $uid, $uid]);
 $items = $st->fetchAll();
 
 // 已读水位 = 我名下文章收到的最新一条"他人评论"的 id
 $mst = db()->prepare("SELECT COALESCE(MAX(c.id), 0) m FROM comments c JOIN posts p ON p.id = c.post_id
-                      WHERE p.user_id = ? AND (c.user_id IS NULL OR c.user_id != ?)");
-$mst->execute([$uid, $uid]);
+                      WHERE (c.user_id IS NULL OR c.user_id != ?)
+                        AND (p.user_id = ?
+                             OR EXISTS (SELECT 1 FROM comments mc
+                                        WHERE mc.post_id = c.post_id AND mc.user_id = ?))");
+$mst->execute([$uid, $uid, $uid]);
 $waterline = (int)$mst->fetch()['m'];
 db()->prepare("UPDATE users SET last_seen_comment_id = ? WHERE id = ?")->execute([$waterline, $uid]);
 
@@ -73,11 +83,11 @@ function rel_time(string $dt): string {
   <div class="msg-page">
     <div class="msg-head">
       <h1>🔔 消息中心</h1>
-      <span class="msg-sub">别人给你的文章留言会出现在这里</span>
+      <span class="msg-sub">你文章的留言，以及你参与过的讨论里的新回复，都会出现在这里</span>
     </div>
     <?php if (!$items): ?>
       <div class="empty-state">
-        <h1>还没有收到留言</h1>
+        <h1>还没有新的互动</h1>
         <p>多发文章，让大家认识你吧～</p>
         <a class="btn" href="admin.php?action=new">＋ 写新文章</a>
       </div>

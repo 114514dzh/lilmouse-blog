@@ -23,6 +23,21 @@ $tags = array_filter(array_map('trim', explode(',', $post['tags'] ?? '')));
 $cs = db()->prepare("SELECT c.author, c.content, c.created_at, COALESCE(u.username, c.author) AS display_name FROM comments c LEFT JOIN users u ON u.id = c.user_id WHERE c.post_id = ? ORDER BY c.id ASC");
 $cs->execute([$id]);
 $comments = $cs->fetchAll();
+// 评论提交结果提示：comment.php 失败时经 ?err= 回传，此前是静默丢弃、无任何反馈
+$cmtErr = (string)($_GET['err'] ?? '');
+$cmtOk  = isset($_GET['ok']);
+$flash  = '';
+if ($cmtErr !== '') {
+    $flashMap = [
+        'empty' => '评论内容不能为空。',
+        'long'  => '评论太长了（最多 500 字），请精简后再发。',
+        'fast'  => '发得太快了，同一篇文章 5 秒内只能发一条，请稍候。',
+    ];
+    $flash = $flashMap[$cmtErr] ?? '评论提交失败，请重试。';
+} elseif ($cmtOk) {
+    $flash = '评论已发布 ✓';
+}
+$flashOk = ($flash !== '' && $cmtErr === '');
 ?>
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -50,6 +65,7 @@ $comments = $cs->fetchAll();
     <div class="post-body"><?= $html ?></div>
     <section class="comments">
       <h2>评论 (<?= count($comments) ?>)</h2>
+      <?php if ($flash !== ''): ?><p class="flash<?= $flashOk ? '' : ' flash-err' ?>"><?= htmlspecialchars($flash) ?></p><?php endif; ?>
       <?php if (!$comments): ?><p class="empty">还没有评论，来抢沙发。</p><?php else: ?>
         <?php foreach ($comments as $c): ?>
           <div class="comment">

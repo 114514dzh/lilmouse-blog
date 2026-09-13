@@ -29,6 +29,9 @@
       highlightNav(finalUrl);
       window.scrollTo(0, 0);
       restoreDraft();
+      // PJAX 换页后立即刷新消息浮球：此前只靠 30s 轮询，
+      // 刚评论完回到列表页徽章不会变，用户以为没生效。
+      if (window.__lmCheckNotif) window.__lmCheckNotif();
       requestAnimationFrame(function () {
         main.style.transition = 'opacity .38s cubic-bezier(.22,.61,.36,1), transform .38s cubic-bezier(.22,.61,.36,1)';
         main.style.opacity = '1';
@@ -192,6 +195,8 @@
       })
       .catch(function () {});
   }
+  // 暴露给 PJAX 的 swap() 调用，实现换页即时刷新
+  window.__lmCheckNotif = check;
   check();
   setInterval(check, 30000);
 })();
