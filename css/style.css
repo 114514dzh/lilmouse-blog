@@ -354,6 +354,10 @@ a, button, .btn, .nav-item, .nav-fab { -webkit-touch-callout: none; }
   display: flex; align-items: center; justify-content: center;
   border: 2px solid #fff; box-sizing: content-box;
 }
+/* hidden 属性必须能盖过上面的 display:flex：
+   浏览器默认样式表的 [hidden]{display:none} 优先级低于作者样式，
+   导致未读为 0 时徽章仍显示成一个 20x20 的红点。 */
+.msg-badge[hidden] { display: none; }
 .msg-head { margin: 40px 0 8px; }
 .msg-head h1 { font-size: 1.7rem; font-weight: 800; margin-bottom: 4px; }
 .msg-sub { color: var(--muted); font-size: .9rem; }
